@@ -4,6 +4,7 @@
 This program serves as a proof of concept for a larger project that I plan to develop. Its primary function is to transcribe speech in real time. In the future, this POC is intended to become a modular component of another project.
 ## Features
 
+List of features:
 - Real-time speech transcription
 ## Upcoming Features
 
