@@ -2,9 +2,9 @@
 # 1. Silence is currently transcribed as "Thank you" and "you". Need to scrap audio lower than a specific volume threshold
 
 # Future:
-# 1. Diarization with familiarity with Alex
+# 1. Diarization
 # 2. Conversational interrupts
-# 3. 
+# 3. Use semantics to determine if a speaker is speaking to the program
 
 import os
 from groq import Groq
@@ -26,8 +26,9 @@ SILENCE_DURATION = 2.0
 load_dotenv()
 client = Groq(api_key=os.environ["GROQ_API_KEY"])
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model, utils = torch.hub.load('snakers4/silero-vad', 'silero_vad', force_reload=False)
-(get_speech_timestamps, _, read_audio, *_) = utils
+model = model.to(device)
 
 start_new_transcript = ""
 while start_new_transcript not in ("y", "n"):
@@ -51,7 +52,7 @@ def transcribe(audio_file):
 
 # VAD Model expects float32 tensors, 16kHz, chunks of 512 samples (32ms)
 def is_speech_silero(audio_int16_chunk):
-    audio_float32 = torch.from_numpy(audio_int16_chunk.astype(np.float32) / 32768.0)
+    audio_float32 = torch.from_numpy(audio_int16_chunk.astype(np.float32) / 32768.0).to(device)
     with torch.no_grad():
         speech_prob = model(audio_float32, SAMPLE_RATE).item()
 
