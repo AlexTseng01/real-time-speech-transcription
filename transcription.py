@@ -53,7 +53,6 @@ def record():
             audio, overflowed = stream.read(frame_size)
             # print(f"[2] Overflow = {overflowed}")
             audio = audio[:, 0] # Removes the channel dimension to become 1D
-            audio = highpass(audio) # Filter audio
             is_speech = is_speech_silero(audio) # VAD doing its job
             
             # VAD detects audio
@@ -77,7 +76,3 @@ def record():
                         break
                     
     return np.concatenate(recording)
-
-def highpass(audio, cutoff=80, fs=16000):
-    sos = butter(4, cutoff, btype="highpass", fs=fs, output="sos")
-    return sosfilt(sos, audio)
