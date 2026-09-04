@@ -74,3 +74,7 @@ def record():
                         print("\r" + " " * 50 + "\r", end="", flush=True)
                         break
     return np.concatenate(recording)
+
+def is_empty_audio(audio_file):
+    None
+    # ToDo: detects empty audio in a file and marks it dirty for the algorithm to trash it
