@@ -13,6 +13,7 @@ CHANNELS = 1
 DTYPE = "int16"
 FRAME_DURATION = 32
 SILENCE_DURATION = 2.0
+FRAME_SIZE = int(SAMPLE_RATE * FRAME_DURATION / 1000) # 512
 
 # Initial setup
 load_dotenv()
@@ -41,15 +42,14 @@ def is_speech_silero(audio_int16_chunk):
 
 # Well... what else is there to say here?
 def record():
-    frame_size = int(SAMPLE_RATE * FRAME_DURATION / 1000) # 512
     recording = [] # Contains small chunks of audio, each is FRAME_DURATION long
     speaking = False # Becomes true if speaking is detected
     silence_start = None # Remember when the silence begins
 
     # Turns on microphone 
-    with sd.InputStream(samplerate=SAMPLE_RATE, channels=CHANNELS, dtype=DTYPE, blocksize=frame_size) as stream:
+    with sd.InputStream(samplerate=SAMPLE_RATE, channels=CHANNELS, dtype=DTYPE, blocksize=FRAME_SIZE) as stream:
         while True:
-            audio, overflowed = stream.read(frame_size)
+            audio, overflowed = stream.read(FRAME_SIZE)
             # print(f"[2] Overflow = {overflowed}")
             audio = audio[:, 0] # Removes the channel dimension to become 1D
             is_speech = is_speech_silero(audio) # VAD doing its job
