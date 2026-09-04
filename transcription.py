@@ -22,23 +22,12 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model, utils = torch.hub.load('snakers4/silero-vad', 'silero_vad', force_reload=False)
 model = model.to(device)
 
-start_new_transcript = ""
-while start_new_transcript not in ("y", "n"):
-    start_new_transcript = input("Start new transcription? (y/n): ")
-
-if start_new_transcript == "y":
-    if os.path.exists("transcript.txt"):
-        os.remove("transcript.txt")
-    print("[Starting new transcript]")
-else:
-    print("[Continuing new transcript]")
-
 # Runs the audio file on the whisper-large-v3-turbo model and gets a string output
 def transcribe(audio_file):
     with open(audio_file, "rb") as file:
         transcription = client.audio.transcriptions.create(
             file=file, 
-            model="whisper-large-v3-turbo"
+            model="whisper-large-v3"
         )
     return transcription
 
@@ -48,7 +37,7 @@ def is_speech_silero(audio_int16_chunk):
     with torch.no_grad():
         speech_prob = model(audio_float32, SAMPLE_RATE).item()
 
-    return speech_prob > 0.5
+    return speech_prob > 0.3
 
 # Well... what else is there to say here?
 def record():
@@ -60,7 +49,7 @@ def record():
     # Turns on microphone 
     with sd.InputStream(samplerate=SAMPLE_RATE, channels=CHANNELS, dtype="int16", blocksize=frame_size) as stream:
         while True:
-            audio, overflowed = stream.read(frame_size)
+            audio, overflowed = stream.read(frame_size) # Possibly blocking
             audio = audio[:, 0] # Removes the channel dimension to become 1D
             is_speech = is_speech_silero(audio) # VAD doing its job
 
@@ -82,5 +71,5 @@ def record():
                     if silence_elapsed >= SILENCE_DURATION:
                         print("\r" + " " * 50 + "\r", end="", flush=True)
                         break
-
+                    
     return np.concatenate(recording)
