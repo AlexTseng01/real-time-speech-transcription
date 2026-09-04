@@ -11,7 +11,7 @@ import torch
 SAMPLE_RATE = 16000
 CHANNELS = 1
 DTYPE = "int16"
-FRAME_DURATION = 30 # ms
+FRAME_DURATION = 32
 SILENCE_DURATION = 2.0
 
 # Initial setup
@@ -37,12 +37,11 @@ def is_speech_silero(audio_int16_chunk):
     audio_float32 = torch.from_numpy(audio_int16_chunk.astype(np.float32) / 32768.0).to(device)
     with torch.no_grad():
         speech_prob = model(audio_float32, SAMPLE_RATE).item()
-
     return speech_prob > 0.3
 
 # Well... what else is there to say here?
 def record():
-    frame_size = 512
+    frame_size = int(SAMPLE_RATE * FRAME_DURATION / 1000) # 512
     recording = [] # Contains small chunks of audio, each is FRAME_DURATION long
     speaking = False # Becomes true if speaking is detected
     silence_start = None # Remember when the silence begins
@@ -74,5 +73,4 @@ def record():
                     if silence_elapsed >= SILENCE_DURATION:
                         print("\r" + " " * 50 + "\r", end="", flush=True)
                         break
-                    
     return np.concatenate(recording)
