@@ -4,13 +4,13 @@ from dotenv import load_dotenv
 import sounddevice as sd
 import numpy as np
 import time
-from scipy.io.wavfile import write
-from datetime import datetime
+from scipy.signal import butter, sosfilt
 import torch
 
 # Settings
 SAMPLE_RATE = 16000
 CHANNELS = 1
+DTYPE = "int16"
 FRAME_DURATION = 30 # ms
 SILENCE_DURATION = 2.0
 
@@ -27,7 +27,8 @@ def transcribe(audio_file):
     with open(audio_file, "rb") as file:
         transcription = client.audio.transcriptions.create(
             file=file, 
-            model="whisper-large-v3"
+            model="whisper-large-v3",
+            language="en"
         )
     return transcription
 
@@ -47,16 +48,19 @@ def record():
     silence_start = None # Remember when the silence begins
 
     # Turns on microphone 
-    with sd.InputStream(samplerate=SAMPLE_RATE, channels=CHANNELS, dtype="int16", blocksize=frame_size) as stream:
+    with sd.InputStream(samplerate=SAMPLE_RATE, channels=CHANNELS, dtype=DTYPE, blocksize=frame_size) as stream:
         while True:
-            audio, overflowed = stream.read(frame_size) # Possibly blocking
+            audio, overflowed = stream.read(frame_size)
+            # print(f"[2] Overflow = {overflowed}")
             audio = audio[:, 0] # Removes the channel dimension to become 1D
+            audio = highpass(audio) # Filter audio
             is_speech = is_speech_silero(audio) # VAD doing its job
-
+            
             # VAD detects audio
             volume = np.sqrt(np.mean(audio.astype(np.float32) ** 2))
             if is_speech:
                 if not speaking:
+                    print("Beginning of speech detected")
                     speaking = not speaking
                 recording.append(audio.copy())
                 silence_start = None
@@ -73,3 +77,7 @@ def record():
                         break
                     
     return np.concatenate(recording)
+
+def highpass(audio, cutoff=80, fs=16000):
+    sos = butter(4, cutoff, btype="highpass", fs=fs, output="sos")
+    return sosfilt(sos, audio)

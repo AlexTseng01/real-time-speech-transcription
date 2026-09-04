@@ -23,7 +23,7 @@ def main():
 
         transcription = transcribe("temp.wav")
 
-        print(f"[{datetime.now().strftime('%H:%M:%S')}]:{transcription.text}")
+        print(f"[{datetime.now().strftime('%H:%M:%S')}]:{transcription.text}\n")
         with open("transcript.txt", "a", encoding="utf-8") as f:
             f.write(f"[{datetime.now().strftime('%H:%M:%S')}]:{transcription.text}\n")
 
