@@ -1,4 +1,4 @@
-from transcription import record, transcribe, SAMPLE_RATE
+from microphone_transcriber import record, transcribe, SAMPLE_RATE
 from datetime import datetime
 from scipy.io.wavfile import write
 import os

@@ -24,13 +24,14 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model, utils = torch.hub.load('snakers4/silero-vad', 'silero_vad', force_reload=False)
 model = model.to(device)
 
-# Runs the audio file on the whisper-large-v3-turbo model and gets a string output
+# Runs the audio file on the whisper-large-v3 model and gets a string output
 def transcribe(audio_file):
     with open(audio_file, "rb") as file:
         transcription = client.audio.transcriptions.create(
             file=file, 
             model="whisper-large-v3",
-            language="en"
+            language="en",
+            temperature=0
         )
     return transcription
 
@@ -51,9 +52,7 @@ def record():
     with sd.InputStream(samplerate=SAMPLE_RATE, channels=CHANNELS, dtype=DTYPE, blocksize=FRAME_SIZE) as stream:
         while True:
             audio, overflowed = stream.read(FRAME_SIZE)
-            # print(f"[2] Overflow = {overflowed}")
             audio = audio[:, 0]
-
             is_speech = is_speech_silero(audio)
             
             # VAD detects audio
@@ -80,7 +79,12 @@ def record():
             if is_empty_audio(audio):
                 continue
 
-    return np.concatenate(recording)
+    # Append 0.1 seconds of empty audio to the beginning of the audio
+    # Helps with Whisper transcription for cases like "Creation date" and other words with articulated syllables or something
+    recording = np.concatenate(recording)
+    silence = np.zeros(int(SAMPLE_RATE * 0.1), dtype=np.int16)
+    recording = np.concatenate([silence, recording])
+    return recording
 
 # Checks if an audio numpy array is below the volume threshold
 def is_empty_audio(audio):
