@@ -16,6 +16,7 @@ List of upcoming features:
 - Fine-tuning Whisper model for higher English-transcription accuracy
 - Conversational interrupts
 - (Pray) for more optimizations
+- Desktop audio capturing using separate input sources
 ## Issues
 
 List of known issues:

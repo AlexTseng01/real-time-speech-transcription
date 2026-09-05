@@ -14,6 +14,7 @@ DTYPE = "int16"
 FRAME_DURATION = 32
 SILENCE_DURATION = 2.0
 FRAME_SIZE = int(SAMPLE_RATE * FRAME_DURATION / 1000) # 512
+THRESHOLD = 50
 
 # Initial setup
 load_dotenv()
@@ -51,8 +52,9 @@ def record():
         while True:
             audio, overflowed = stream.read(FRAME_SIZE)
             # print(f"[2] Overflow = {overflowed}")
-            audio = audio[:, 0] # Removes the channel dimension to become 1D
-            is_speech = is_speech_silero(audio) # VAD doing its job
+            audio = audio[:, 0]
+
+            is_speech = is_speech_silero(audio)
             
             # VAD detects audio
             volume = np.sqrt(np.mean(audio.astype(np.float32) ** 2))
@@ -73,8 +75,14 @@ def record():
                     if silence_elapsed >= SILENCE_DURATION:
                         print("\r" + " " * 50 + "\r", end="", flush=True)
                         break
+
+            # Try to skip transcribing any empty audios
+            if is_empty_audio(audio):
+                continue
+
     return np.concatenate(recording)
 
-def is_empty_audio(audio_file):
-    None
-    # ToDo: detects empty audio in a file and marks it dirty for the algorithm to trash it
+# Checks if an audio numpy array is below the volume threshold
+def is_empty_audio(audio):
+    average_volume = np.mean(np.abs(audio))
+    return average_volume < THRESHOLD
