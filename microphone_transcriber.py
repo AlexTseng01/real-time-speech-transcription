@@ -4,7 +4,6 @@ from dotenv import load_dotenv
 import sounddevice as sd
 import numpy as np
 import time
-from scipy.signal import butter, sosfilt
 import torch
 
 # Settings
@@ -20,9 +19,7 @@ THRESHOLD = 50
 load_dotenv()
 client = Groq(api_key=os.environ["GROQ_API_KEY"])
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model, utils = torch.hub.load('snakers4/silero-vad', 'silero_vad', force_reload=False)
-model = model.to(device)
+model = utils = device = None
 
 # Runs the audio file on the whisper-large-v3 model and gets a string output
 def transcribe(audio_file):
@@ -43,7 +40,13 @@ def is_speech_silero(audio_int16_chunk):
     return speech_prob > 0.3
 
 # Record microphone audio
-def record():
+def record(vad_model, vad_utils, vad_device):
+    global model, utils, device
+    
+    model = vad_model
+    utils = vad_utils
+    device = vad_device
+    
     recording = [] # Contains small chunks of audio, each is FRAME_DURATION long
     speaking = False # Becomes true if speaking is detected
     silence_start = None # Remember when the silence begins

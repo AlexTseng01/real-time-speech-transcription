@@ -1,12 +1,16 @@
 # Use YAMNet for classifying audios like differentiating if an audio is a bird, human, or a dinosaur
-# import microphone_transcriber
+import microphone_transcriber
 import desktop_transcriber
 from datetime import datetime
 from scipy.io.wavfile import write
 import os
+from vad import setup_vad
 
 # Main loop
 def main():
+    # Globalize VAD
+    model, utils, device = setup_vad()
+
     start_new_transcript = ""
     while start_new_transcript not in ("y", "n"):
         start_new_transcript = input("Start new transcription? (y/n): ")
@@ -20,12 +24,12 @@ def main():
 
     while True:
         # Make sure record() actually works not sequentially with transcribe(). It needs to keep recording despite how long whisper takes to finish transcribing
-        audio = desktop_transcriber.record()
+        audio = microphone_transcriber.record(model, utils, device)
 
-        write("temp.wav", desktop_transcriber.SAMPLE_RATE, audio)
+        write("temp.wav", microphone_transcriber.SAMPLE_RATE, audio)
 
         # Good chance that transcribe() is going to take quite a few seconds to transcribe, so record() needs to work independently
-        transcription = desktop_transcriber.transcribe("temp.wav")
+        transcription = microphone_transcriber.transcribe("temp.wav")
 
         print(f"[{datetime.now().strftime('%H:%M:%S')}]:{transcription.text}\n")
         with open("transcript.txt", "a", encoding="utf-8") as f:

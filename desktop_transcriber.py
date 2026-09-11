@@ -3,7 +3,6 @@ from groq import Groq
 from dotenv import load_dotenv
 import numpy as np
 import time
-from scipy.signal import butter, sosfilt
 import torch
 import pyaudiowpatch as pyaudio
 
@@ -20,9 +19,7 @@ THRESHOLD = 50
 load_dotenv()
 client = Groq(api_key=os.environ["GROQ_API_KEY"])
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model, utils = torch.hub.load('snakers4/silero-vad', 'silero_vad', force_reload=False)
-model = model.to(device)
+model = utils = device = None
 
 # Runs the audio file on the whisper-large-v3 model and gets a string output
 def transcribe(audio_file):
@@ -43,17 +40,23 @@ def is_speech_silero(audio_int16_chunk):
     return speech_prob > 0.3
 
 # Record desktop audio
-def record():
+def record(vad_model, vad_utils, vad_device):
+    global model, utils, device
+
+    model = vad_model
+    utils = vad_utils
+    device = vad_device
+
     recording = []
     speaking = False
     silence_start = None
 
     p = pyaudio.PyAudio()
 
-    device = p.get_device_info_by_index(23)
+    audio_device = p.get_device_info_by_index(23)
 
-    rate = int(device["defaultSampleRate"])
-    channels = device["maxInputChannels"]
+    rate = int(audio_device["defaultSampleRate"])
+    channels = audio_device["maxInputChannels"]
     chunk = 1536  # 32 ms at 48 kHz
 
     stream = p.open(
@@ -61,7 +64,7 @@ def record():
         channels=channels,
         rate=rate,
         input=True,
-        input_device_index=device["index"],
+        input_device_index=audio_device["index"],
         frames_per_buffer=chunk
     )
 
