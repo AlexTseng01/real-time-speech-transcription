@@ -80,7 +80,6 @@ def record(vad_model, vad_utils, vad_device):
             is_speech = is_speech_silero(audio)
 
             # VAD detects audio
-            volume = np.sqrt(np.mean(audio.astype(np.float32) ** 2))
             if is_speech:
                 if not speaking:
                     print("Beginning of speech detected")

@@ -5,13 +5,23 @@ from datetime import datetime
 from scipy.io.wavfile import write
 import os
 import torch
+from queue import Queue
+import threading
+
+# Forces record() to work without waiting for transcribe()
+def record_worker(audio_queue, model, utils, device):
+    while True:
+        audio = microphone_transcriber.record(model, utils, device)
+        audio_queue.put(audio)
 
 # Main loop
 def main():
-    # Globalize VAD
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model, utils = torch.hub.load('snakers4/silero-vad', 'silero_vad', force_reload=False)
     model = model.to(device)
+
+    audio_queue = Queue()
+    threading.Thread(target=record_worker, args=(audio_queue, model, utils, device), daemon=True).start()
 
     start_new_transcript = ""
     while start_new_transcript not in ("y", "n"):
@@ -25,12 +35,10 @@ def main():
         print("[Continuing new transcript]")
 
     while True:
-        # Make sure record() actually works not sequentially with transcribe(). It needs to keep recording despite how long whisper takes to finish transcribing
-        audio = microphone_transcriber.record(model, utils, device)
-
+        audio = audio_queue.get()
+        
         write("temp.wav", microphone_transcriber.SAMPLE_RATE, audio)
 
-        # Good chance that transcribe() is going to take quite a few seconds to transcribe, so record() needs to work independently
         transcription = microphone_transcriber.transcribe("temp.wav")
 
         print(f"[{datetime.now().strftime('%H:%M:%S')}]:{transcription.text}\n")
@@ -39,5 +47,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-# Bug: VAD is loading twice, make vad.py so each module shares vad. If you ever call VAD on both at the same time, microphone + desktop, this may be a brief deadlock or a race condition to fix 

@@ -56,10 +56,10 @@ def record(vad_model, vad_utils, vad_device):
         while True:
             audio, overflowed = stream.read(FRAME_SIZE)
             audio = audio[:, 0]
+
             is_speech = is_speech_silero(audio)
             
             # VAD detects audio
-            volume = np.sqrt(np.mean(audio.astype(np.float32) ** 2))
             if is_speech:
                 if not speaking:
                     print("Beginning of speech detected")
@@ -82,7 +82,6 @@ def record(vad_model, vad_utils, vad_device):
                 continue
 
     # Append 0.1 seconds of empty audio to the beginning of the audio
-    # Helps with Whisper transcription for cases like "Creation date" and other words with articulated syllables or something
     recording = np.concatenate(recording)
     silence = np.zeros(int(SAMPLE_RATE * 0.1), dtype=np.int16)
     recording = np.concatenate([silence, recording])
