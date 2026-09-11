@@ -4,12 +4,14 @@ import desktop_transcriber
 from datetime import datetime
 from scipy.io.wavfile import write
 import os
-from vad import setup_vad
+import torch
 
 # Main loop
 def main():
     # Globalize VAD
-    model, utils, device = setup_vad()
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model, utils = torch.hub.load('snakers4/silero-vad', 'silero_vad', force_reload=False)
+    model = model.to(device)
 
     start_new_transcript = ""
     while start_new_transcript not in ("y", "n"):
