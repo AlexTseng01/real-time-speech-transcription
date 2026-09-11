@@ -1,4 +1,6 @@
-from microphone_transcriber import record, transcribe, SAMPLE_RATE
+# Use YAMNet for classifying audios like differentiating if an audio is a bird, human, or a dinosaur
+# import microphone_transcriber
+import desktop_transcriber
 from datetime import datetime
 from scipy.io.wavfile import write
 import os
@@ -17,11 +19,13 @@ def main():
         print("[Continuing new transcript]")
 
     while True:
-        audio = record()
+        # Make sure record() actually works not sequentially with transcribe(). It needs to keep recording despite how long whisper takes to finish transcribing
+        audio = desktop_transcriber.record()
 
-        write("temp.wav", SAMPLE_RATE, audio)
+        write("temp.wav", desktop_transcriber.SAMPLE_RATE, audio)
 
-        transcription = transcribe("temp.wav")
+        # Good chance that transcribe() is going to take quite a few seconds to transcribe, so record() needs to work independently
+        transcription = desktop_transcriber.transcribe("temp.wav")
 
         print(f"[{datetime.now().strftime('%H:%M:%S')}]:{transcription.text}\n")
         with open("transcript.txt", "a", encoding="utf-8") as f:
@@ -29,3 +33,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# Bug: VAD is loading twice, make vad.py so each module shares vad. If you ever call VAD on both at the same time, microphone + desktop, this may be a brief deadlock or a race condition to fix 

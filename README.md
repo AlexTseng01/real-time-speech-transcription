@@ -21,3 +21,4 @@ List of upcoming features:
 
 List of known issues:
 - Silence is interpreted by Whisper as "Thank you" and "you"
+- Suspected internet connection issues causing the Whisper API to lag behind. Still needs more testing

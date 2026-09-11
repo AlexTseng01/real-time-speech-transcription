@@ -1,11 +1,11 @@
 import os
 from groq import Groq
 from dotenv import load_dotenv
-import sounddevice as sd
 import numpy as np
 import time
 from scipy.signal import butter, sosfilt
 import torch
+import pyaudiowpatch as pyaudio
 
 # Settings
 SAMPLE_RATE = 16000
@@ -42,19 +42,40 @@ def is_speech_silero(audio_int16_chunk):
         speech_prob = model(audio_float32, SAMPLE_RATE).item()
     return speech_prob > 0.3
 
-# Record microphone audio
+# Record desktop audio
 def record():
-    recording = [] # Contains small chunks of audio, each is FRAME_DURATION long
-    speaking = False # Becomes true if speaking is detected
-    silence_start = None # Remember when the silence begins
+    recording = []
+    speaking = False
+    silence_start = None
 
-    # Turns on microphone 
-    with sd.InputStream(samplerate=SAMPLE_RATE, channels=CHANNELS, dtype=DTYPE, blocksize=FRAME_SIZE) as stream:
+    p = pyaudio.PyAudio()
+
+    device = p.get_device_info_by_index(23)
+
+    rate = int(device["defaultSampleRate"])
+    channels = device["maxInputChannels"]
+    chunk = 1536  # 32 ms at 48 kHz
+
+    stream = p.open(
+        format=pyaudio.paInt16,
+        channels=channels,
+        rate=rate,
+        input=True,
+        input_device_index=device["index"],
+        frames_per_buffer=chunk
+    )
+
+    try:
         while True:
-            audio, overflowed = stream.read(FRAME_SIZE)
-            audio = audio[:, 0]
+            data = stream.read(chunk)
+
+            audio = np.frombuffer(data, dtype=np.int16)
+            audio = audio.reshape(-1, channels)
+            audio = audio.mean(axis=1).astype(np.int16)
+            audio = audio[::3]
+
             is_speech = is_speech_silero(audio)
-            
+
             # VAD detects audio
             volume = np.sqrt(np.mean(audio.astype(np.float32) ** 2))
             if is_speech:
@@ -73,16 +94,24 @@ def record():
                     if silence_elapsed >= SILENCE_DURATION:
                         print("\r" + " " * 50 + "\r", end="", flush=True)
                         break
-
             # Try to skip transcribing any empty audios
             if is_empty_audio(audio):
                 continue
+    finally:
+        stream.stop_stream()
+        stream.close()
+        p.terminate()
 
-    # Append 0.1 seconds of empty audio to the beginning of the audio
-    # Helps with Whisper transcription for cases like "Creation date" and other words with articulated syllables or something
+    # Append 0.1 seconds of empty audio to beginning
     recording = np.concatenate(recording)
-    silence = np.zeros(int(SAMPLE_RATE * 0.1), dtype=np.int16)
+
+    silence = np.zeros(
+        int(SAMPLE_RATE * 0.1),
+        dtype=np.int16
+    )
+
     recording = np.concatenate([silence, recording])
+
     return recording
 
 # Checks if an audio numpy array is below the volume threshold
