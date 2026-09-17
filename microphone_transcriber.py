@@ -8,12 +8,10 @@ import torch
 
 # Settings
 SAMPLE_RATE = 16000
-CHANNELS = 1
-DTYPE = "int16"
 FRAME_DURATION = 32
-SILENCE_DURATION = 2.0
-FRAME_SIZE = int(SAMPLE_RATE * FRAME_DURATION / 1000) # 512
-THRESHOLD = 50
+SILENCE_DURATION = 2.0 # How long to wait until finish recording
+FRAME_SIZE = int(SAMPLE_RATE * FRAME_DURATION / 1000)
+THRESHOLD = 50 # Trashes any recordings that are below this volume
 
 # Initial setup
 load_dotenv()
@@ -52,7 +50,7 @@ def record(vad_model, vad_utils, vad_device):
     silence_start = None # Remember when the silence begins
 
     # Turns on microphone 
-    with sd.InputStream(samplerate=SAMPLE_RATE, channels=CHANNELS, dtype=DTYPE, blocksize=FRAME_SIZE) as stream:
+    with sd.InputStream(samplerate=SAMPLE_RATE, channels=1, dtype=np.int16, blocksize=FRAME_SIZE) as stream:
         while True:
             audio, overflowed = stream.read(FRAME_SIZE)
             audio = audio[:, 0]
