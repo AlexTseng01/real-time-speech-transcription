@@ -8,12 +8,12 @@ import pyaudiowpatch as pyaudio
 
 # Settings
 SAMPLE_RATE = 16000
-CHANNELS = 1
-DTYPE = "int16"
 FRAME_DURATION = 32
-SILENCE_DURATION = 2.0
-FRAME_SIZE = int(SAMPLE_RATE * FRAME_DURATION / 1000) # 512
-THRESHOLD = 50
+SILENCE_DURATION = 2.0 # If silence is detected for this long, finish recording
+FRAME_SIZE = int(SAMPLE_RATE * FRAME_DURATION / 1000)
+THRESHOLD = 50 # If volume falls below this number, trash the audio
+OUTPUT_DEVICE = "Speakers (JBL Quantum One Game) [Loopback]" # A primary output device
+WHISPER_MODEL = "whisper-large-v3"
 
 # Initial setup
 load_dotenv()
@@ -26,7 +26,7 @@ def transcribe(audio_file):
     with open(audio_file, "rb") as file:
         transcription = client.audio.transcriptions.create(
             file=file, 
-            model="whisper-large-v3",
+            model=WHISPER_MODEL,
             language="en",
             temperature=0
         )
@@ -38,6 +38,14 @@ def is_speech_silero(audio_int16_chunk):
     with torch.no_grad():
         speech_prob = model(audio_float32, SAMPLE_RATE).item()
     return speech_prob > 0.3
+
+# Make sure your primary output device actually exists
+def find_device(p):
+    for i in range(p.get_device_count()):
+        info = p.get_device_info_by_index(i)
+        if info["name"] == OUTPUT_DEVICE:
+            return i
+    return None
 
 # Record desktop audio
 def record(vad_model, vad_utils, vad_device):
@@ -53,18 +61,25 @@ def record(vad_model, vad_utils, vad_device):
 
     p = pyaudio.PyAudio()
 
-    audio_device = p.get_device_info_by_index(23)
+    # Check the device exists or something
+    device_index = find_device(p)
+
+    if device_index is None:
+        p.terminate()
+        return None
+    
+    audio_device = p.get_device_info_by_index(device_index)
 
     rate = int(audio_device["defaultSampleRate"])
     channels = audio_device["maxInputChannels"]
-    chunk = 1536  # 32 ms at 48 kHz
+    chunk = 1536
 
     stream = p.open(
         format=pyaudio.paInt16,
         channels=channels,
         rate=rate,
         input=True,
-        input_device_index=audio_device["index"],
+        input_device_index=device_index,
         frames_per_buffer=chunk
     )
 
@@ -96,7 +111,8 @@ def record(vad_model, vad_utils, vad_device):
                     if silence_elapsed >= SILENCE_DURATION:
                         print("\r" + " " * 50 + "\r", end="", flush=True)
                         break
-            # Try to skip transcribing any empty audios
+
+            # Skip audio below some volume threshold
             if is_empty_audio(audio):
                 continue
     finally:
@@ -104,13 +120,10 @@ def record(vad_model, vad_utils, vad_device):
         stream.close()
         p.terminate()
 
-    # Append 0.1 seconds of empty audio to beginning
     recording = np.concatenate(recording)
 
-    silence = np.zeros(
-        int(SAMPLE_RATE * 0.1),
-        dtype=np.int16
-    )
+    # Add 0.5 seconds to the beginning of the audio
+    silence = np.zeros(int(SAMPLE_RATE * 0.5),dtype=np.int16)
 
     recording = np.concatenate([silence, recording])
 
