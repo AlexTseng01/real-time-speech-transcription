@@ -1,5 +1,4 @@
 # Use YAMNet for classifying audios like differentiating if an audio is a bird, human, or a dinosaur
-# WeSpeaker ResNet34 speaker encoder, might make KoljaB's repo obsolete (pip install git+https://github.com/wenet-e2e/wespeaker.git) (yes it supports identity verification via speaker embedding)
 from datetime import datetime
 from scipy.io.wavfile import write
 import os
@@ -29,8 +28,6 @@ if start_new_transcript == "y":
         os.remove("transcript.txt")
 
 # Forces record() to work without waiting for transcribe()
-# Current bugs:
-# - threads do not terminate using ctrl + c until the next time VAD detects speech
 def record_worker(audio_queue, model, utils, device):
     while True:
         audio = transcriber.record(model, utils, device)
@@ -48,8 +45,7 @@ def main():
 
     while True:
         audio = audio_queue.get()
-
-        # You might be able to do transcribe(audio) because whisper might not need a .wav file
+        
         write("temp.wav", transcriber.SAMPLE_RATE, audio)
 
         transcription = transcriber.transcribe("temp.wav")

@@ -17,8 +17,13 @@ List of upcoming features:
 - Conversational interrupts
 - (Pray) for more optimizations
 - Desktop audio capturing using separate input sources
+- MobileNetV3-Small
 ## Issues
 
 List of known issues:
 - Silence is interpreted by Whisper as "Thank you" and "you"
 - Suspected internet connection issues causing the Whisper API to lag behind. Still needs more testing
+## Packages
+
+List of important packages
+- WeSpeaker

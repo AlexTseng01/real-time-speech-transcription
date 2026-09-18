@@ -8,12 +8,12 @@ import pyaudiowpatch as pyaudio
 
 # Settings
 SAMPLE_RATE = 16000
+CHANNELS = 1
+DTYPE = "int16"
 FRAME_DURATION = 32
-SILENCE_DURATION = 2.0 # How long to wait until finish recording
-FRAME_SIZE = int(SAMPLE_RATE * FRAME_DURATION / 1000)
-THRESHOLD = 50 # Trashes any recordings that are below this volume
-GAME_DEVICE_INDEX = 23 # JBL Quantum One Gaming
-CHAT_DEVICE_INDEX = 24 # JBL Quantum One Chat
+SILENCE_DURATION = 2.0
+FRAME_SIZE = int(SAMPLE_RATE * FRAME_DURATION / 1000) # 512
+THRESHOLD = 50
 
 # Initial setup
 load_dotenv()
@@ -53,52 +53,28 @@ def record(vad_model, vad_utils, vad_device):
 
     p = pyaudio.PyAudio()
 
-    game_device = p.get_device_info_by_index(GAME_DEVICE_INDEX)
-    chat_device = p.get_device_info_by_index(CHAT_DEVICE_INDEX)
+    audio_device = p.get_device_info_by_index(23)
 
-    rate = int(game_device["defaultSampleRate"])
+    rate = int(audio_device["defaultSampleRate"])
+    channels = audio_device["maxInputChannels"]
     chunk = 1536  # 32 ms at 48 kHz
 
-    game_channels = game_device["maxInputChannels"]
-    chat_channels = chat_device["maxInputChannels"]
-
-    # Open desktop device JBL Quantum One Gaming
-    game_stream = p.open(
+    stream = p.open(
         format=pyaudio.paInt16,
-        channels=game_channels,
+        channels=channels,
         rate=rate,
         input=True,
-        input_device_index=23,
-        frames_per_buffer=chunk
-    )
-
-    # Open desktop device JBL Quantum One Chat
-    chat_stream = p.open(
-        format=pyaudio.paInt16,
-        channels=chat_channels,
-        rate=rate,
-        input=True,
-        input_device_index=24,
+        input_device_index=audio_device["index"],
         frames_per_buffer=chunk
     )
 
     try:
         while True:
-            game_data = game_stream.read(chunk)
-            chat_data = chat_stream.read(chunk)
+            data = stream.read(chunk)
 
-            game_audio = np.frombuffer(game_data, dtype=np.int16)
-            chat_audio = np.frombuffer(chat_data, dtype=np.int16)
-
-            game_audio = game_audio.reshape(-1, game_channels)
-            chat_audio = chat_audio.reshape(-1, chat_channels)
-
-            game_audio = game_audio.mean(axis=1)
-            chat_audio = chat_audio.mean(axis=1)
-
-            # Combining Game + Chat audio
-            audio = ((game_audio.astype(np.int32) + chat_audio.astype(np.int32)) / 2).astype(np.int16)
-
+            audio = np.frombuffer(data, dtype=np.int16)
+            audio = audio.reshape(-1, channels)
+            audio = audio.mean(axis=1).astype(np.int16)
             audio = audio[::3]
 
             is_speech = is_speech_silero(audio)
@@ -124,12 +100,8 @@ def record(vad_model, vad_utils, vad_device):
             if is_empty_audio(audio):
                 continue
     finally:
-        game_stream.stop_stream()
-        game_stream.close()
-
-        chat_stream.stop_stream()
-        chat_stream.close()
-
+        stream.stop_stream()
+        stream.close()
         p.terminate()
 
     # Append 0.1 seconds of empty audio to beginning
